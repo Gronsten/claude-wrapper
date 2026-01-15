@@ -2,10 +2,32 @@
 
 Get up and running in 5 minutes.
 
-## TL;DR
+## TL;DR (Pre-built Release)
 
 ```batch
-# 1. Edit claude_node_wrapper.c with YOUR paths (see below)
+# 1. Download claude-wrapper.exe from Releases
+
+# 2. Copy to permanent location
+copy claude-wrapper.exe C:\Tools\
+
+# 3. Create claude-wrapper.json in same directory
+{
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "cliPath": "C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
+
+# 4. Configure VS Code settings.json
+{
+  "claudeCode.claudeProcessWrapper": "C:\\Tools\\claude-wrapper.exe"
+}
+
+# 5. Restart VS Code
+```
+
+## TL;DR (Build from Source)
+
+```batch
+# 1. Create claude-wrapper.json with your paths
 
 # 2. Build
 build.bat
@@ -15,6 +37,7 @@ test.bat
 
 # 4. Install
 copy claude-wrapper.exe C:\Tools\
+copy claude-wrapper.json C:\Tools\
 
 # 5. Configure VS Code settings.json
 {
@@ -24,16 +47,21 @@ copy claude-wrapper.exe C:\Tools\
 # 6. Restart VS Code
 ```
 
-## REQUIRED: Configure Your Paths
+## REQUIRED: Configuration File
 
-Edit `claude_node_wrapper.c` before building:
+Create `claude-wrapper.json` in the same directory as the .exe:
 
-```c
-// Find your paths with: where node
-#define NODE_EXE_PATH L"C:\\Program Files\\nodejs\\node.exe"
+```json
+{
+  "nodePath": "C:\\path\\to\\node.exe",
+  "cliPath": "C:\\path\\to\\cli.js"
+}
+```
 
-// Find your paths with: where claude (then look for cli.js)
-#define CLI_JS_PATH L"C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+Find your paths:
+```batch
+where node        # -> nodePath
+where claude      # -> Look for cli.js in same directory
 ```
 
 ## What This Does
@@ -56,26 +84,29 @@ Bypasses the crashing Bun executable in Claude Code extension 2.1.7+ by routing 
 
 | File | Purpose |
 |------|---------|
-| `claude_node_wrapper.c` | Main source code - **EDIT PATHS HERE** |
+| `claude_node_wrapper.c` | Main source code |
+| `claude-wrapper.json` | Your configuration (required) |
+| `claude-wrapper.example.json` | Example configuration |
 | `claude-wrapper.exe` | Compiled wrapper (Git-ignored) |
 | `build.bat` | Build script |
 | `test.bat` | Test script |
-| `README.md` | Full documentation |
-| `INSTALL.md` | Detailed installation guide |
-| `.gitignore` | Git ignore rules |
 
 ## Common Path Configurations
 
 **Standard npm:**
-```
-Node: C:\Program Files\nodejs\node.exe
-CLI:  C:\Users\<user>\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\cli.js
+```json
+{
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "cliPath": "C:\\Users\\<user>\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
 ```
 
 **Scoop:**
-```
-Node: C:\Users\<user>\scoop\apps\nodejs-lts\current\node.exe
-CLI:  C:\Users\<user>\scoop\persist\nodejs-lts\npm-global\node_modules\@anthropic-ai\claude-code\cli.js
+```json
+{
+  "nodePath": "C:\\Users\\<user>\\scoop\\apps\\nodejs-lts\\current\\node.exe",
+  "cliPath": "C:\\Users\\<user>\\scoop\\persist\\nodejs-lts\\npm-global\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
 ```
 
 ## VS Code Settings Format
@@ -97,7 +128,7 @@ CLI:  C:\Users\<user>\scoop\persist\nodejs-lts\npm-global\node_modules\@anthropi
 | Problem | Quick Fix |
 |---------|-----------|
 | GCC not found | Install MinGW or `scoop install gcc` |
-| Test fails | Check paths in `claude_node_wrapper.c` |
+| Config not found | Ensure `claude-wrapper.json` is in same directory as .exe |
 | VS Code still crashes | Restart VS Code completely |
 | Path not found | Run `where node` and `where claude` to find correct paths |
 
