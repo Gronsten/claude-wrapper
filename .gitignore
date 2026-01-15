@@ -1,0 +1,21 @@
+# Compiled executables
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# Debug files
+*.pdb
+*.ilk
+
+# Windows specific
+*.lnk
+Thumbs.db
+
+# Editor directories
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
