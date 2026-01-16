@@ -13,6 +13,9 @@
 *.lnk
 Thumbs.db
 
+# User config (contains local paths)
+claude-wrapper.json
+
 # Editor directories
 .vscode/
 .vs/

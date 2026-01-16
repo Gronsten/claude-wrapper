@@ -5,9 +5,10 @@
  *          command-line parsing issues with complex arguments.
  *
  * This wrapper:
- * 1. Receives arguments from VS Code extension
- * 2. Calls: node.exe <cli.js path> <all arguments>
- * 3. Bypasses cmd.exe to preserve complex JSON/special characters
+ * 1. Loads configuration from claude-wrapper.json (same directory as .exe)
+ * 2. Receives arguments from VS Code extension
+ * 3. Calls: node.exe <cli.js path> <all arguments>
+ * 4. Bypasses cmd.exe to preserve complex JSON/special characters
  *
  * Security: Implements buffer overflow protection and safe process creation.
  *
@@ -18,23 +19,144 @@
 #include <windows.h>
 #include <stdio.h>
 #include <wchar.h>
+#include <shlwapi.h>
+
+#pragma comment(lib, "shlwapi.lib")
 
 #define MAX_CMDLINE 32768
+#define MAX_PATH_LEN 1024
+#define CONFIG_FILENAME L"claude-wrapper.json"
 
-// =============================================================================
-// CONFIGURATION: Update these paths to match your system
-// =============================================================================
-// Find your paths:
-//   where node     -> Shows NODE_EXE_PATH
-//   where claude   -> Parent directory contains node_modules for CLI_JS_PATH
-//
-// Common locations:
-//   Standard npm:  C:\Users\<user>\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\cli.js
-//   Scoop:         C:\Users\<user>\scoop\persist\nodejs-lts\npm-global\node_modules\@anthropic-ai\claude-code\cli.js
-// =============================================================================
+// Default paths (used if config file not found)
+#define DEFAULT_NODE_PATH L"C:\\Program Files\\nodejs\\node.exe"
+#define DEFAULT_CLI_PATH L"C:\\Users\\USERNAME\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
 
-#define NODE_EXE_PATH L"C:\\Program Files\\nodejs\\node.exe"
-#define CLI_JS_PATH L"C:\\Users\\USERNAME\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+// Global path buffers
+static wchar_t g_nodePath[MAX_PATH_LEN];
+static wchar_t g_cliPath[MAX_PATH_LEN];
+
+/**
+ * Skip whitespace in a string
+ */
+static const char* skipWhitespace(const char* s) {
+    while (*s && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r')) s++;
+    return s;
+}
+
+/**
+ * Extract a JSON string value for a given key
+ * Simple parser - handles basic JSON with string values only
+ * Returns 1 on success, 0 on failure
+ */
+static int extractJsonString(const char* json, const char* key, wchar_t* outValue, size_t maxLen) {
+    char searchKey[256];
+    _snprintf(searchKey, sizeof(searchKey), "\"%s\"", key);
+
+    const char* keyPos = strstr(json, searchKey);
+    if (!keyPos) return 0;
+
+    // Skip past key and find colon
+    keyPos += strlen(searchKey);
+    keyPos = skipWhitespace(keyPos);
+    if (*keyPos != ':') return 0;
+    keyPos++;
+    keyPos = skipWhitespace(keyPos);
+
+    // Expect opening quote
+    if (*keyPos != '"') return 0;
+    keyPos++;
+
+    // Extract value until closing quote (handle escape sequences)
+    char tempValue[MAX_PATH_LEN];
+    size_t i = 0;
+    while (*keyPos && *keyPos != '"' && i < sizeof(tempValue) - 1) {
+        if (*keyPos == '\\' && *(keyPos + 1)) {
+            keyPos++; // Skip backslash
+            switch (*keyPos) {
+                case '\\': tempValue[i++] = '\\'; break;
+                case '"': tempValue[i++] = '"'; break;
+                case 'n': tempValue[i++] = '\n'; break;
+                case 't': tempValue[i++] = '\t'; break;
+                default: tempValue[i++] = *keyPos; break;
+            }
+        } else {
+            tempValue[i++] = *keyPos;
+        }
+        keyPos++;
+    }
+    tempValue[i] = '\0';
+
+    // Convert to wide string
+    if (MultiByteToWideChar(CP_UTF8, 0, tempValue, -1, outValue, (int)maxLen) == 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
+/**
+ * Load configuration from JSON file
+ * Returns 1 if config loaded successfully, 0 if using defaults
+ */
+static int loadConfig(void) {
+    // Get path to executable
+    wchar_t exePath[MAX_PATH_LEN];
+    if (GetModuleFileNameW(NULL, exePath, MAX_PATH_LEN) == 0) {
+        return 0;
+    }
+
+    // Build path to config file (same directory as exe)
+    wchar_t configPath[MAX_PATH_LEN];
+    wcscpy(configPath, exePath);
+    PathRemoveFileSpecW(configPath);
+    PathAppendW(configPath, CONFIG_FILENAME);
+
+    // Open config file
+    HANDLE hFile = CreateFileW(configPath, GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        #ifdef DEBUG
+        wprintf(L"Debug: Config file not found: %s\n", configPath);
+        #endif
+        return 0;
+    }
+
+    // Read file content
+    char buffer[8192] = {0};
+    DWORD bytesRead = 0;
+    if (!ReadFile(hFile, buffer, sizeof(buffer) - 1, &bytesRead, NULL)) {
+        CloseHandle(hFile);
+        return 0;
+    }
+    CloseHandle(hFile);
+    buffer[bytesRead] = '\0';
+
+    #ifdef DEBUG
+    wprintf(L"Debug: Loaded config from: %s\n", configPath);
+    #endif
+
+    // Parse JSON values
+    int nodeFound = extractJsonString(buffer, "nodePath", g_nodePath, MAX_PATH_LEN);
+    int cliFound = extractJsonString(buffer, "cliPath", g_cliPath, MAX_PATH_LEN);
+
+    return (nodeFound && cliFound);
+}
+
+/**
+ * Initialize paths from config file or defaults
+ */
+static void initializePaths(void) {
+    // Try to load from config file
+    if (!loadConfig()) {
+        // Use defaults
+        wcscpy(g_nodePath, DEFAULT_NODE_PATH);
+        wcscpy(g_cliPath, DEFAULT_CLI_PATH);
+
+        #ifdef DEBUG
+        wprintf(L"Debug: Using default paths\n");
+        #endif
+    }
+}
 
 /**
  * Main entry point
@@ -42,6 +164,9 @@
  * Calls: node.exe cli.js <args from extension>
  */
 int wmain(int argc, wchar_t *argv[]) {
+    // Initialize paths from config or defaults
+    initializePaths();
+
     // Get the full command line (preserves original quoting)
     LPWSTR fullCmd = GetCommandLineW();
 
@@ -66,7 +191,7 @@ int wmain(int argc, wchar_t *argv[]) {
     // Build new command line: node.exe cli.js <original args>
     wchar_t commandLine[MAX_CMDLINE];
     int written = _snwprintf(commandLine, MAX_CMDLINE, L"\"%s\" \"%s\" %s",
-                             NODE_EXE_PATH, CLI_JS_PATH, cmdStart);
+                             g_nodePath, g_cliPath, cmdStart);
 
     if (written < 0 || written >= MAX_CMDLINE) {
         fwprintf(stderr, L"Error: Command line too long\n");
@@ -75,6 +200,8 @@ int wmain(int argc, wchar_t *argv[]) {
 
     // Debug output
     #ifdef DEBUG
+    wprintf(L"Debug: Node path: %s\n", g_nodePath);
+    wprintf(L"Debug: CLI path: %s\n", g_cliPath);
     wprintf(L"Debug: Executing: %s\n", commandLine);
     #endif
 
@@ -90,7 +217,7 @@ int wmain(int argc, wchar_t *argv[]) {
 
     // Create the process (directly call node.exe)
     BOOL success = CreateProcessW(
-        NODE_EXE_PATH,     // Application name (node.exe)
+        g_nodePath,        // Application name (node.exe)
         commandLine,       // Command line
         NULL,              // Process security attributes
         NULL,              // Thread security attributes
@@ -105,12 +232,12 @@ int wmain(int argc, wchar_t *argv[]) {
     if (!success) {
         DWORD error = GetLastError();
         fwprintf(stderr, L"Error: Failed to launch Node.js (Error code: %lu)\n", error);
-        fwprintf(stderr, L"Node path: %s\n", NODE_EXE_PATH);
-        fwprintf(stderr, L"CLI path: %s\n", CLI_JS_PATH);
+        fwprintf(stderr, L"Node path: %s\n", g_nodePath);
+        fwprintf(stderr, L"CLI path: %s\n", g_cliPath);
 
         switch (error) {
             case ERROR_FILE_NOT_FOUND:
-                fwprintf(stderr, L"  -> Node.js not found. Check NODE_EXE_PATH.\n");
+                fwprintf(stderr, L"  -> Node.js not found. Check nodePath in claude-wrapper.json.\n");
                 break;
             case ERROR_ACCESS_DENIED:
                 fwprintf(stderr, L"  -> Access denied.\n");

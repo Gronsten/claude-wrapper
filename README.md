@@ -26,10 +26,11 @@ Extension → claude-wrapper.exe → node.exe + cli.js → SUCCESS
 ```
 
 The wrapper:
-1. Receives all arguments from the VS Code extension
-2. Calls `node.exe` directly with the `cli.js` script path
-3. Passes all arguments unchanged (preserving JSON, special characters, etc.)
-4. Returns the exit code to the extension
+1. Loads configuration from `claude-wrapper.json` (same directory as .exe)
+2. Receives all arguments from the VS Code extension
+3. Calls `node.exe` directly with the `cli.js` script path
+4. Passes all arguments unchanged (preserving JSON, special characters, etc.)
+5. Returns the exit code to the extension
 
 ## Security Features
 
@@ -42,15 +43,40 @@ The wrapper:
 
 - **Node.js**: [Download](https://nodejs.org/) or install via package manager
 - **Claude CLI**: Install via npm: `npm install -g @anthropic-ai/claude-code`
-- **MinGW GCC**: [Download MinGW](https://sourceforge.net/projects/mingw/) or use a package manager
+- **MinGW GCC**: Only needed if building from source
 
-## Configuration (REQUIRED)
+## Quick Start (Pre-built Release)
 
-Before building, you **must** edit `claude_node_wrapper.c` to set your paths:
+1. Download `claude-wrapper.exe` from [Releases](https://github.com/Gronsten/claude-wrapper/releases)
+2. Copy to a permanent location (e.g., `C:\Tools\`)
+3. Create `claude-wrapper.json` in the same directory:
 
-```c
-#define NODE_EXE_PATH L"C:\\Program Files\\nodejs\\node.exe"
-#define CLI_JS_PATH L"C:\\Users\\USERNAME\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+```json
+{
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "cliPath": "C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
+```
+
+4. Configure VS Code `settings.json`:
+
+```json
+{
+  "claudeCode.claudeProcessWrapper": "C:\\Tools\\claude-wrapper.exe"
+}
+```
+
+5. Restart VS Code
+
+## Configuration
+
+Create `claude-wrapper.json` in the same directory as `claude-wrapper.exe`:
+
+```json
+{
+  "nodePath": "C:\\path\\to\\node.exe",
+  "cliPath": "C:\\path\\to\\cli.js"
+}
 ```
 
 ### Finding Your Paths
@@ -69,24 +95,30 @@ where claude
 ### Common Path Configurations
 
 **Standard Node.js + npm:**
-```c
-#define NODE_EXE_PATH L"C:\\Program Files\\nodejs\\node.exe"
-#define CLI_JS_PATH L"C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+```json
+{
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "cliPath": "C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
 ```
 
 **Scoop:**
-```c
-#define NODE_EXE_PATH L"C:\\Users\\YourName\\scoop\\apps\\nodejs-lts\\current\\node.exe"
-#define CLI_JS_PATH L"C:\\Users\\YourName\\scoop\\persist\\nodejs-lts\\npm-global\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+```json
+{
+  "nodePath": "C:\\Users\\YourName\\scoop\\apps\\nodejs-lts\\current\\node.exe",
+  "cliPath": "C:\\Users\\YourName\\scoop\\persist\\nodejs-lts\\npm-global\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
 ```
 
 **nvm-windows:**
-```c
-#define NODE_EXE_PATH L"C:\\Users\\YourName\\AppData\\Roaming\\nvm\\v20.x.x\\node.exe"
-#define CLI_JS_PATH L"C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+```json
+{
+  "nodePath": "C:\\Users\\YourName\\AppData\\Roaming\\nvm\\v20.x.x\\node.exe",
+  "cliPath": "C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"
+}
 ```
 
-## Building
+## Building from Source
 
 ### Quick Build
 
@@ -97,18 +129,18 @@ build.bat
 ### Manual Build
 
 ```batch
-gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -O2 -s
+gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -O2 -s -lshlwapi
 ```
 
 ### Debug Build
 
 ```batch
-gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -DDEBUG
+gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -DDEBUG -lshlwapi
 ```
 
 ## Installation
 
-Copy `claude-wrapper.exe` to a permanent location:
+1. Copy `claude-wrapper.exe` to a permanent location:
 
 ```batch
 :: Option 1: Dedicated tools folder
@@ -119,9 +151,9 @@ copy claude-wrapper.exe C:\Tools\
 copy claude-wrapper.exe %APPDATA%\npm\
 ```
 
-## VS Code Configuration
+2. Create `claude-wrapper.json` in the same directory with your paths
 
-Add to your VS Code `settings.json`:
+3. Configure VS Code `settings.json`:
 
 ```json
 {
@@ -165,24 +197,23 @@ The wrapper provides a **universal solution** that works with any extension vers
 ### Error: Node.js not found
 
 1. Run `where node` to find your Node.js path
-2. Edit `claude_node_wrapper.c` and update `NODE_EXE_PATH`
-3. Rebuild with `build.bat`
+2. Update `nodePath` in `claude-wrapper.json`
 
 ### Error: CLI script not found
 
 1. Run `where claude` to find your Claude CLI location
 2. Look for `node_modules\@anthropic-ai\claude-code\cli.js` in that directory
-3. Edit `claude_node_wrapper.c` and update `CLI_JS_PATH`
-4. Rebuild with `build.bat`
+3. Update `cliPath` in `claude-wrapper.json`
 
 ### Extension Still Crashes
 
 1. Verify wrapper path in `settings.json` is correct
 2. Ensure double backslashes in path
-3. Restart VS Code completely after changing settings
-4. Test wrapper from command line: `claude-wrapper.exe --version`
+3. Verify `claude-wrapper.json` is in same directory as `.exe`
+4. Restart VS Code completely after changing settings
+5. Test wrapper from command line: `claude-wrapper.exe --version`
 
-### GCC Not Found
+### GCC Not Found (Building from Source)
 
 - Download MinGW: https://sourceforge.net/projects/mingw/
 - Or use Scoop: `scoop install gcc`
@@ -195,21 +226,24 @@ The wrapper uses Windows API `CreateProcessW` to directly spawn `node.exe`:
 - Inherits stdin/stdout/stderr handles
 - Preserves all argument quoting and special characters
 - Returns child process exit code
+- Reads configuration from JSON file (no recompilation needed)
 
 ## File Structure
 
 ```
 claude-wrapper/
-├── claude_node_wrapper.c   # Main source - EDIT PATHS HERE
-├── build.bat               # Build script
-├── test.bat                # Test script
-├── README.md               # This file
-├── INSTALL.md              # Detailed installation guide
-├── QUICKSTART.md           # Quick reference
-├── ARCHITECTURE.md         # Technical documentation
-├── COMPARISON.md           # Comparison with original solution
-├── .gitignore              # Git ignore rules
-└── claude-wrapper.exe      # Compiled output (after build)
+├── claude_node_wrapper.c       # Main source code
+├── claude-wrapper.example.json # Example configuration
+├── build.bat                   # Build script
+├── test.bat                    # Test script
+├── README.md                   # This file
+├── INSTALL.md                  # Detailed installation guide
+├── QUICKSTART.md               # Quick reference
+├── ARCHITECTURE.md             # Technical documentation
+├── COMPARISON.md               # Comparison with original solution
+├── LICENSE                     # MIT License
+├── .gitignore                  # Git ignore rules
+└── claude-wrapper.exe          # Compiled output (after build)
 ```
 
 ## Why This Works
@@ -232,6 +266,5 @@ MIT License - See LICENSE file for details.
 
 ## Version History
 
-- **v1.0** - Initial `cmd /c claude.cmd` wrapper (failed with complex args)
-- **v2.0** - Transparent pass-through wrapper (didn't bypass Bun)
-- **v3.0** - **Direct Node.js wrapper (WORKING!)** - Current version
+- **v1.0.0** - Initial release with hardcoded paths
+- **v1.1.0** - Added JSON config file support (no recompilation needed)

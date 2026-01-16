@@ -27,7 +27,7 @@ gcc --version | findstr "gcc"
 echo.
 
 echo [2/3] Compiling claude_node_wrapper.c...
-gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -O2 -s
+gcc -o claude-wrapper.exe claude_node_wrapper.c -municode -mconsole -O2 -s -lshlwapi
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERROR: Compilation failed
@@ -51,7 +51,9 @@ if exist claude-wrapper.exe (
     echo.
     echo To install for VS Code:
     echo   1. Copy claude-wrapper.exe to a permanent location
-    echo   2. Update VS Code settings.json:
+    echo   2. Copy claude-wrapper.example.json to same location as claude-wrapper.json
+    echo   3. Edit claude-wrapper.json with your Node.js and CLI paths
+    echo   4. Update VS Code settings.json:
     echo      "claudeCode.claudeProcessWrapper": "C:\\path\\to\\claude-wrapper.exe"
     echo.
 ) else (
