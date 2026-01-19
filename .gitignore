@@ -24,4 +24,4 @@ claude-wrapper.json
 *~
 
 # Developer-only
-copy-to-prod.bat
+copy-to-prod.ps1
