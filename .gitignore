@@ -22,3 +22,6 @@ claude-wrapper.json
 *.swp
 *.swo
 *~
+
+# Developer-only
+copy-to-prod.bat
