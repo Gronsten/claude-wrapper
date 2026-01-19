@@ -165,16 +165,50 @@ copy claude-wrapper.exe %APPDATA%\npm\
 
 **Settings file location:** `%APPDATA%\Code\User\settings.json`
 
-## Testing
+## CLI Usage
 
-### Command Line Test
+### Wrapper-Specific Commands
+
+The wrapper provides its own CLI commands that are handled before passthrough:
+
+```batch
+claude-wrapper.exe --wrapper-version
+:: Show wrapper version (e.g., "claude-wrapper version 1.2.0")
+
+claude-wrapper.exe --wrapper-help
+:: Show wrapper-specific help and usage
+
+claude-wrapper.exe --wrapper-test
+:: Test Claude Code passthrough (verifies config, Node.js, CLI, and passthrough)
+```
+
+**Note:** These wrapper commands start with `--wrapper-` prefix to avoid conflicts with Claude Code CLI flags.
+
+### Testing
+
+#### Quick Test
+
+```batch
+claude-wrapper.exe --wrapper-test
+```
+
+This runs a comprehensive test that checks:
+1. Configuration file loading
+2. Node.js existence
+3. Claude Code CLI existence
+4. Actual passthrough execution
+
+#### Manual Tests
 
 ```batch
 claude-wrapper.exe --version
-:: Expected: 2.x.x (Claude Code)
+:: Expected: 2.x.x (Claude Code) - passes through to Claude Code CLI
 
 claude-wrapper.exe --help
-:: Expected: Usage information
+:: Expected: Claude Code CLI help - passes through to Claude Code CLI
+
+claude-wrapper.exe --wrapper-version
+:: Expected: claude-wrapper version 1.2.0 - handled by wrapper
 ```
 
 ### Run Test Suite
@@ -266,5 +300,6 @@ MIT License - See LICENSE file for details.
 
 ## Version History
 
-- **v1.0.0** - Initial release with hardcoded paths
+- **v1.2.0** - Added wrapper-specific CLI switches (--wrapper-version, --wrapper-help, --wrapper-test)
 - **v1.1.0** - Added JSON config file support (no recompilation needed)
+- **v1.0.0** - Initial release with hardcoded paths

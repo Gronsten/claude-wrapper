@@ -1,10 +1,16 @@
 @echo off
-REM Test script for claude_wrapper.exe
-REM Runs various test cases to verify functionality
+REM Legacy test script for claude-wrapper.exe
+REM NOTE: Prefer using: claude-wrapper.exe --wrapper-test
+REM
+REM This script tests Claude Code passthrough functionality
+REM by running various test cases to verify the wrapper works correctly.
 
 echo ========================================
-echo Testing Claude Wrapper
+echo Testing Claude Wrapper (Legacy Tests)
 echo ========================================
+echo.
+echo NOTE: You can now use: claude-wrapper.exe --wrapper-test
+echo       for a built-in comprehensive test suite.
 echo.
 
 REM Check if wrapper exists
